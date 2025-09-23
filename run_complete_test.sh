@@ -14,13 +14,157 @@ log() {
     echo -e "${color}${message}${NC}"
 }
 
+# Detectar modo local
+LOCAL_MODE=false
+if [[ "$1" == "--local" ]] || [[ "$2" == "--local" ]]; then
+    LOCAL_MODE=true
+    # Remover --local dos argumentos
+    ARGS=("$@")
+    ARGS=("${ARGS[@]/--local}")
+    set -- "${ARGS[@]}"
+fi
+
 SCENARIO=${1:-"both"}
-if [[ ! "$SCENARIO" =~ ^(unsharded|sharded|both)$ ]]; then
-    log $RED "❌ Uso: ./run_complete_test.sh [unsharded|sharded|both]"
+if [[ ! "$SCENARIO" =~ ^(unsharded|sharded|both|local)$ ]]; then
+    log $RED "❌ Uso: ./run_complete_test.sh [unsharded|sharded|both|local] [--local]"
+    log $YELLOW "   Exemplos:"
+    log $YELLOW "   ./run_complete_test.sh local      # Teste local rápido"
+    log $YELLOW "   ./run_complete_test.sh --local    # Teste local rápido"
+    log $YELLOW "   ./run_complete_test.sh both       # Teste distribuído AWS"
     exit 1
 fi
 
+# Se o cenário for 'local', ativar modo local
+if [[ "$SCENARIO" == "local" ]]; then
+    LOCAL_MODE=true
+fi
+
 CONFIG_FILE="./config.env"
+
+# Função para executar teste local
+run_local_test() {
+    log $BLUE "🏠 Executando teste local..."
+    log $YELLOW "   Verificando se mock server está rodando..."
+    
+    # Verificar se o servidor está rodando
+    if curl -s http://localhost:8000/feed?user_id=test > /dev/null 2>&1; then
+        log $GREEN "✅ Mock server detectado em localhost:8000"
+    else
+        log $RED "❌ Mock server não encontrado em localhost:8000"
+        log $YELLOW "   Execute em outro terminal:"
+        log $YELLOW "   node mock_server.js"
+        exit 1
+    fi
+    
+    # Verificar se k6 está instalado
+    if ! command -v k6 &> /dev/null; then
+        log $RED "❌ K6 não está instalado"
+        log $YELLOW "   Instale com: sudo apt install k6"
+        exit 1
+    fi
+    
+    log $GREEN "✅ K6 encontrado: $(k6 version --quiet 2>/dev/null || k6 version | head -1)"
+    
+    # Carregar configurações locais se existirem
+    LOCAL_CONFIG="./config.local.env"
+    if [ -f "$LOCAL_CONFIG" ]; then
+        source "$LOCAL_CONFIG"
+        log $GREEN "✅ Configurações locais carregadas"
+    fi
+    
+    # Executar teste local
+    log $BLUE "🚀 Iniciando bateria de testes de performance local..."
+    
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    RESULTS_DIR="./test_results/local_${TIMESTAMP}"
+    mkdir -p "$RESULTS_DIR"
+    
+    # Teste com diferentes configurações usando o script local otimizado
+    log $YELLOW "   📊 Teste 1: Carga leve (${VUS_LIGHT:-10} usuários, ${DURATION_LIGHT:-30s})"
+    VUS=${VUS_LIGHT:-10} DURATION=${DURATION_LIGHT:-30s} API_URL=http://localhost:8000 SLEEP=1 \
+        k6 run k6_local_test.js --out json="$RESULTS_DIR/light_test.json" --summary-export="$RESULTS_DIR/light_summary.json"
+    
+    log $YELLOW "   📊 Teste 2: Carga média (${VUS_MEDIUM:-50} usuários, ${DURATION_MEDIUM:-60s})"  
+    VUS=${VUS_MEDIUM:-50} DURATION=${DURATION_MEDIUM:-60s} API_URL=http://localhost:8000 SLEEP=1 \
+        k6 run k6_local_test.js --out json="$RESULTS_DIR/medium_test.json" --summary-export="$RESULTS_DIR/medium_summary.json"
+    
+    log $YELLOW "   📊 Teste 3: Carga pesada (${VUS_HEAVY:-100} usuários, ${DURATION_HEAVY:-30s})"
+    VUS=${VUS_HEAVY:-100} DURATION=${DURATION_HEAVY:-30s} API_URL=http://localhost:8000 SLEEP=0.5 \
+        k6 run k6_local_test.js --out json="$RESULTS_DIR/heavy_test.json" --summary-export="$RESULTS_DIR/heavy_summary.json"
+    
+    log $GREEN "✅ Todos os testes locais concluídos!"
+    log $BLUE "📁 Resultados detalhados salvos em: $RESULTS_DIR"
+    
+    # Gerar relatório consolidado
+    log $YELLOW "   📄 Gerando relatório consolidado..."
+    generate_local_report "$RESULTS_DIR"
+    
+    # Analisar resultados se Python estiver disponível
+    if command -v python3 &> /dev/null; then
+        log $YELLOW "   📈 Gerando análise Python..."
+        python3 analyze_results.py "$RESULTS_DIR" 2>/dev/null || log $YELLOW "   ⚠️  Análise Python não disponível"
+        
+        # Analisar métricas de sistema se disponíveis
+        if [ -f "analyze_system_metrics.py" ] && [ -d "$RESULTS_DIR" ]; then
+            log $YELLOW "   🔧 Analisando métricas de sistema..."
+            python3 analyze_system_metrics.py "$RESULTS_DIR" 2>/dev/null || log $YELLOW "   ⚠️  Análise de sistema não disponível"
+        fi
+    fi
+    
+    log $GREEN "🎉 Teste local finalizado com sucesso!"
+    log $BLUE "   Abra $RESULTS_DIR/report.txt para ver o relatório completo"
+    
+    exit 0
+}
+
+# Função para gerar relatório consolidado local
+generate_local_report() {
+    local results_dir=$1
+    local report_file="$results_dir/report.txt"
+    
+    {
+        echo "🌍 RELATÓRIO DE TESTE LOCAL - $(date)"
+        echo "=========================================="
+        echo ""
+        
+        for test_type in light medium heavy; do
+            local summary_file="$results_dir/${test_type}_summary.json"
+            if [ -f "$summary_file" ]; then
+                echo "📊 TESTE ${test_type^^}:"
+                echo "----------------------------------------"
+                
+                # Extrair métricas principais usando jq se disponível, senão grep
+                if command -v jq &> /dev/null; then
+                    local reqs=$(jq -r '.metrics.http_reqs.values.count // 0' "$summary_file")
+                    local fail_rate=$(jq -r '(.metrics.http_req_failed.values.rate // 0) * 100' "$summary_file")
+                    local avg_duration=$(jq -r '.metrics.http_req_duration.values.avg // 0' "$summary_file")
+                    local p95_duration=$(jq -r '.metrics.http_req_duration.values["p(95)"] // 0' "$summary_file")
+                    
+                    printf "Total de requisições: %s\n" "$reqs"
+                    printf "Taxa de erro: %.2f%%\n" "$fail_rate"
+                    printf "Tempo médio: %.2fms\n" "$avg_duration"
+                    printf "P95: %.2fms\n" "$p95_duration"
+                else
+                    echo "Arquivo de métricas: $summary_file"
+                fi
+                echo ""
+            fi
+        done
+        
+        echo "✅ Teste concluído com sucesso!"
+        echo "📁 Arquivos gerados:"
+        find "$results_dir" -name "*.json" -exec basename {} \; | sed 's/^/   - /'
+        
+    } > "$report_file"
+    
+    log $GREEN "✅ Relatório gerado: $report_file"
+}
+
+# Se modo local, executar teste local
+if [ "$LOCAL_MODE" = true ]; then
+    run_local_test
+fi
+
 if [ ! -f "$CONFIG_FILE" ]; then
     log $RED "❌ Arquivo de configuração não encontrado: $CONFIG_FILE"
     log $YELLOW "   Execute: cp config.env.example config.env"

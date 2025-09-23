@@ -143,3 +143,4 @@ analysis_*.pdf
 # Cache de métricas
 metrics_cache/
 .cache/
+summary.json
