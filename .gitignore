@@ -1,0 +1,145 @@
+# ==================================
+# Git Ignore - Sistema K6 Distribuído  
+# ==================================
+
+# Configurações Sensíveis
+# ------------------------
+config.env
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Credenciais AWS
+.aws/
+aws-credentials.json
+*.access-key
+
+# Resultados de Testes
+# ---------------------
+test_results/
+results_*/
+monitoring_*/
+*.log
+*.csv
+
+# Dados Temporários
+# -----------------
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Arquivos K6 Gerados
+# -------------------
+k6-summary-*.json
+k6_output_*.log
+k6_dynamic_test.js
+
+# Node.js
+# -------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+# ------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+# ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+# --
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backups
+# -------
+*.bak
+*.backup
+*.old
+
+# SSL/TLS
+# -------
+*.crt
+*.csr
+*.der
+*.p7b
+*.p7c
+*.p7s
+*.pem
+
+# Archives
+# --------
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Específicos do Projeto
+# ----------------------
+# Arquivos de configuração local
+config.local.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Scripts de instalação personalizados
+install-*.sh
+setup-*.sh
+
+# Dados sintéticos gerados
+synthetic_users_*.json
+test_data_*.json
+
+# Relatórios temporários
+report_*.html
+analysis_*.pdf
+
+# Cache de métricas
+metrics_cache/
+.cache/
