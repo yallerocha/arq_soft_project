@@ -1,63 +1,180 @@
-# 🚀 Sistema Automatizado de Testes K6 Distribuídos
+# 🌍 Teste de Performance Global - K6 Distribuído
 
-## Como Usar (Super Simples!)
+> **Simule milhares de usuários acessando sua API de diferentes continentes e compare a performance!**
 
-### 1. Preencha o arquivo de configuração
+## 🎯 O que este projeto faz?
+
+Imagine que você tem uma API que precisa funcionar bem para usuários no **Brasil**, **EUA** e **China**. Este sistema:
+
+1. **🚀 Simula usuários reais** em cada região fazendo milhares de requisições
+2. **📊 Mede a performance** (velocidade, erro, latência)
+3. **🔍 Compara dois cenários:**
+   - **Servidor Central**: Todos acessam um servidor nos EUA
+   - **Servidores Regionais**: Cada região tem seu próprio servidor
+4. **📈 Gera relatórios visuais** mostrando qual é melhor
+
+---
+
+## 🚀 Como usar em 3 passos
+
+### Passo 1: Configure suas informações
+
+Abra o arquivo `config.env` e preencha apenas estas linhas:
 
 ```bash
-nano config.env
+# Sua chave SSH da AWS (arquivo .pem)
+AWS_KEY_PATH="./minha-chave.pem"
+
+# IPs das suas máquinas na AWS (uma em cada região)
+EC2_BRAZIL="ec2-123-456-789.sa-east-1.compute.amazonaws.com"
+EC2_USA="ec2-987-654-321.us-east-1.compute.amazonaws.com"
+EC2_CHINA="ec2-111-222-333.cn-north-1.compute.amazonaws.com"
+
+# URLs da sua API em cada região
+API_URL_BRAZIL="http://minha-api-brasil.com:8000"
+API_URL_USA="http://minha-api-eua.com:8000"
+API_URL_CHINA="http://minha-api-china.com:8000"
 ```
 
-Edite apenas as linhas que precisam dos seus dados:
-
-- `AWS_KEY_PATH` - caminho para sua chave .pem
-- `EC2_BRAZIL`, `EC2_USA`, `EC2_CHINA` - IPs das suas instâncias
-- `API_URL_BRAZIL`, `API_URL_USA`, `API_URL_CHINA` - URLs da sua API
-
-### 2. Execute o teste
+### Passo 2: Execute o teste
 
 ```bash
-# Testar apenas cenário unsharded
-./run_complete_test.sh unsharded
-
-# Testar apenas cenário sharded
-./run_complete_test.sh sharded
-
-# Testar ambos os cenários e comparar
+# Para testar ambos os cenários e comparar (RECOMENDADO)
 ./run_complete_test.sh both
+
+# Ou testar apenas um cenário específico:
+./run_complete_test.sh unsharded    # Só servidor central
+./run_complete_test.sh sharded      # Só servidores regionais
 ```
 
-### 3. Veja os resultados
+### Passo 3: Veja os resultados
 
-Os resultados ficam automaticamente em `./test_results/` com:
+Os resultados aparecem automaticamente em `./test_results/`:
 
-- Métricas detalhadas por região
-- Gráficos comparativos (se Python/matplotlib instalado)
-- Logs completos de execução
-- Análise automatizada
+- 📊 **Gráficos comparativos** de performance
+- 📈 **Métricas detalhadas** por região
+- 🕰️ **Tempos de resposta** (média, p95, máximo)
+- ❌ **Taxa de erro** por região
+- 📝 **Logs completos** da execução
 
-## O que o script faz automaticamente:
+---
 
-✅ **Valida suas configurações**
-✅ **Testa conexão com todas as instâncias**  
-✅ **Instala k6 nas instâncias (se necessário)**
-✅ **Gera script k6 personalizado baseado na config**
-✅ **Executa testes em paralelo nas 3 regiões**
-✅ **Coleta todos os resultados automaticamente**
-✅ **Gera análise e gráficos**
-✅ **Compara cenários (se executar 'both')**
+## 🤖 O que acontece automaticamente
 
-## Exemplo de configuração mínima:
+Quando você roda o script, ele faz tudo sozinho:
+
+```
+✅ Valida se suas configurações estão corretas
+✅ Testa conexão com as 3 máquinas na AWS
+✅ Instala o K6 nas máquinas (se não tiver)
+✅ Cria scripts de teste personalizados
+✅ Executa testes simultâneos nas 3 regiões
+✅ Coleta todos os resultados
+✅ Gera gráficos e análises automáticas
+✅ Compara os cenários (se escolheu 'both')
+```
+
+**Você só precisa esperar!** ⏳
+
+---
+
+## 📋 Pré-requisitos
+
+Antes de começar, você precisa ter:
+
+### Na sua máquina local:
+
+- ✅ **Linux/macOS** com Bash
+- ✅ **Python 3** (para gráficos) - opcional
+- ✅ **Chave SSH da AWS** (arquivo .pem)
+
+### Na AWS:
+
+- ✅ **3 instâncias EC2** rodando (Brasil, EUA, China)
+- ✅ **Ubuntu** nas instâncias
+- ✅ **Portas 22 e 8000** liberadas no Security Group
+- ✅ **Sua API** rodando nas 3 regiões
+
+---
+
+## 🎨 Exemplo de resultado
+
+Depois do teste, você vai ver algo assim:
+
+```
+📊 RESUMO DOS RESULTADOS
+==========================================
+🇧🇷 BRASIL:
+   Requisições: 15,000 | Erros: 0.1% | Tempo médio: 45ms
+
+🇺🇸 EUA:
+   Requisições: 15,000 | Erros: 0.0% | Tempo médio: 12ms
+
+🇨🇳 CHINA:
+   Requisições: 15,000 | Erros: 2.3% | Tempo médio: 890ms
+
+🏆 VENCEDOR: Servidores Regionais (-65% latência)
+```
+
+---
+
+## 🔧 Configurações avançadas
+
+Se quiser personalizar o teste, edite estas variáveis no `config.env`:
 
 ```bash
-# config.env
-AWS_KEY_PATH="./my-key.pem"
-EC2_BRAZIL="ec2-54-233-123-45.sa-east-1.compute.amazonaws.com"
-EC2_USA="ec2-34-201-67-89.us-east-1.compute.amazonaws.com"
-EC2_CHINA="ec2-52-81-12-34.cn-north-1.compute.amazonaws.com"
-API_URL_BRAZIL="http://your-api-brazil.com:8000"
-API_URL_USA="http://your-api-usa.com:8000"
-API_URL_CHINA="http://your-api-china.com:8000"
+# Quantos usuários simultâneos por região (padrão: 50)
+VUS_PER_REGION=100
+
+# Quanto tempo o teste vai durar (padrão: 30 minutos)
+TEST_DURATION="60m"
+
+# Intervalo entre requisições (padrão: 1-3 segundos)
+SLEEP_BETWEEN_REQUESTS="0.5-2"
+
+# Limite de tempo de resposta considerado aceitável (padrão: 500ms)
+RESPONSE_TIME_THRESHOLD=300
 ```
 
-Só isso! O resto é automático 🎉
+---
+
+## 🆘 Resolução de problemas
+
+### ❌ "Arquivo de configuração não encontrado"
+
+→ Certifique-se que o arquivo `config.env` existe na mesma pasta
+
+### ❌ "Chave SSH não encontrada"
+
+→ Verifique se o caminho em `AWS_KEY_PATH` está correto
+
+### ❌ "Falha na conexão com instância"
+
+→ Verifique se:
+
+- As instâncias EC2 estão rodando
+- Os IPs estão corretos
+- A porta 22 está liberada no Security Group
+- Você está usando o usuário correto (`ubuntu` para Ubuntu)
+
+### ❌ "Erro ao instalar K6"
+
+→ Verifique se a instância tem acesso à internet
+
+---
+
+## 🚀 Dica Pro
+
+Para testar localmente primeiro, use o servidor mock incluído:
+
+```bash
+# Em um terminal, inicie o servidor mock:
+node mock_server.js
+
+# Em outro terminal, teste:
+./run_complete_test.sh unsharded
+```
+
+---
+
+**Pronto! Agora você pode descobrir se sua API funciona bem globalmente! �**
